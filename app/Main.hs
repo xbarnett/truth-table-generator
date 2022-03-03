@@ -52,30 +52,19 @@ data Operator = Prefix String [String] (Expr -> Expr) |
 
 operators :: [[Operator]]
 operators = [
-  [Prefix "\\sim" ["~", "-", "not"] Not],
-  [Infix "\\land" ["&", "&&", "^", "*", "and"] And P.AssocLeft,
-   Infix "\\lor" ["|", "||", "+", "v", "or"] Or P.AssocLeft,
-   Infix "\\oplus" ["x", "xor"] Xor P.AssocLeft],
+  [Prefix "\\Sim" ["~", "not"] Not],
+  [Infix "\\land" ["&", "and"] And P.AssocLeft,
+   Infix "\\lor" ["|", "or"] Or P.AssocLeft,
+   Infix "\\oplus" ["xor"] Xor P.AssocLeft],
   [Infix "\\to" [">", "->", "to", "implies"] Cond P.AssocLeft,
    Infix "\\leftrightarrow" ["<>", "<->", "iff"] Bicond P.AssocLeft]]
 
-op_chars :: [Char]
-op_chars = do
-  ops <- operators
-  op <- ops
-  let ss = case op of
-             (Prefix _ ss _) -> ss
-             (Infix _ ss _ _) -> ss
-  s <- ss
-  c <- s
-  return c
-
 convert_op :: Operator -> [P.Operator String () F.Identity (Expr, [String])]
 convert_op (Prefix lname names fun) = map (\name -> P.Prefix (do
-  P.try (P.string name >> P.notFollowedBy (P.oneOf op_chars))
+  P.try (P.string name)
   return (\(e0, s0) -> (fun e0, lname : s0)))) names
 convert_op (Infix lname names fun assoc) = map (\name -> P.Infix (do
-  P.try (P.string name >> P.notFollowedBy (P.oneOf op_chars))
+  P.try (P.string name)
   return (\(e0, s0) (e1, s1) -> (fun e0 e1, s0 ++ [lname] ++ s1)))
     assoc) names
 
@@ -213,11 +202,11 @@ bool_to_str False = "F"
 get_latex :: Expr -> [String] -> String
 get_latex e ss = unlines ([
   "\\[",
-  "\\begin{tabular}{" ++ (concat (replicate first_width "|c")) ++ "||" ++
-    (replicate i 'c') ++ "g" ++ (replicate (length ss - i - 1) 'c') ++ "|}",
+  "\\begin{tabular}{" ++ (concat (replicate first_width "|w")) ++ "||" ++
+    (replicate i 'w') ++ "g" ++ (replicate (length ss - i - 1) 'w') ++ "|}",
   "  \\hline",
-  "  \\rowcolor{white}",
-  "  " ++ L.intercalate " & " (map (\s -> "$" ++ s ++ "$") (vars ++ ss))
+  "  " ++ L.intercalate " & " (map (\s -> "$" ++ s ++ "$")
+                               (vars ++ whitened_ss))
     ++ " \\\\",
   "  \\hline"] ++ map (\bs -> "  " ++ L.intercalate " & " (map bool_to_str bs)
                         ++ " \\\\") (map (uncurry (++)) rows) ++ [
@@ -234,6 +223,10 @@ get_latex e ss = unlines ([
 
     vars :: [String]
     vars = map (\c -> [c]) (get_sorted_vars e)
+
+    whitened_ss :: [String]
+    whitened_ss = take i ss ++ ["\\cellcolor{white}" ++ ss !! i] ++
+      drop (i + 1) ss
 
 loop :: Int -> IO ()
 loop i = do
