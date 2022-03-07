@@ -182,17 +182,25 @@ bool_to_str :: Bool -> String
 bool_to_str True = "T"
 bool_to_str False = "F"
 
-get_latex :: [Expr] -> [[String]] -> Maybe String
-get_latex es sss = if length bss > 64 || length (concat sss) > 32 then Nothing
-  else Just (unlines ([
-  "\\documentclass[border=0.4cm]{standalone}",
-  "\\usepackage{colortbl}",
+latex_header :: String
+latex_header = unlines [
+  "\\documentclass{amsart}",
+  "\\usepackage{colortbl, graphics}",
   "\\newcommand{\\Sim}{{\\sim}}",
   "\\definecolor{Gray}{gray}{0.8}",
   "\\newcolumntype{w}{>{\\centering\\arraybackslash}m{0.4cm}}",
   "\\newcolumntype{g}{>{\\columncolor{Gray}}w}",
   "\\setlength{\\arrayrulewidth}{0.4mm}",
-  "\\begin{document}",
+  "\\begin{document}"]
+
+latex_footer :: String
+latex_footer = "\\end{document}"
+
+get_latex :: [Expr] -> [[String]] -> Maybe String
+get_latex es sss = if length bss > 64 || length (concat sss) > 32 then Nothing
+  else Just (unlines ([
+  "\\begin{figure}[h]",
+  "\\scalebox{2}{",
   "\\begin{tabular}{" ++ concat (replicate (length vars) "|w") ++ "||" ++
     concat (map (\(ss, i) -> replicate i 'w' ++ "g" ++
                   replicate (length ss - 1 - i) 'w' ++ "|")
@@ -204,8 +212,8 @@ get_latex es sss = if length bss > 64 || length (concat sss) > 32 then Nothing
   "\\hline"] ++ map (\bs -> L.intercalate " & " (map bool_to_str bs) ++
                             " \\\\") bss ++ [
   "\\hline",
-  "\\end{tabular}",
-  "\\end{document}"]))
+  "\\end{tabular}}",
+  "\\end{figure}"]))
   where
     vars :: [Char]
     vars = S.toList (S.fromList (concat (map get_vars es)))
@@ -228,4 +236,6 @@ process_formula formula =  case P.parse parse_input "" formula of
 main :: IO ()
 main = do
   contents <- I.getContents
+  putStrLn latex_header
   mapM_ process_formula (lines contents)
+  putStrLn latex_footer
